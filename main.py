@@ -5,6 +5,9 @@ import datetime
 import sys
 import os
 import time
+import msvcrt as m # Module that imports C functions such as getch() etc.
+
+from game import Game
 
 API_KEY = 'pXHeOVmmdzmshLbYBk9pW0cdcascp1vka8ajsngrzxD6GmIAVD'
 API_KEY_HEADER = {'X-Mashape-Key': API_KEY}
@@ -23,7 +26,9 @@ def display_help():
 	print("Type 'help' to see this again.")
 	print("Type 'search' to start searching for games.")
 	print("Type 'upcoming' to see upcoming games.")
-	print("Type 'id' to look for a game by its id.")
+	print("Type 'options' to see and change your options.")
+	print("Type 'id' to look for a game by its id.(Debugging Purposes Only)")
+	print("Type 'exit' to exit the program.")
 
 
 def get_info_as_json(http_address):
@@ -40,9 +45,49 @@ def search_games(search_phrase, limit = 10):
 	return get_info_as_json(address)
 
 
+def get_saved_menu_mode():
+	return None
+
+
+def choose_from_options(options_list, message = "Choose option: "):
+	i = 0
+	while(True):
+		print("{}".format(message))
+		for option_index in range(len(options_list)):
+			display = options_list[option_index]
+			if(i == option_index):
+				display += " - current"
+			print(display)
+
+		ch = m.getch()
+		if(ch == b'w'):
+			i -= 1
+		elif(ch == b's'):
+			i += 1
+		elif(ch == b'\r'):
+			return options_list[i]
+
+		if(i < 0):
+			i = 0
+		elif(i >= len(options_list)):
+			i = len(options_list) - 1
+
+		clear()
+
+
 os.system("chcp 65001") # Set the encoding to utf-8
+menu_mode = get_saved_menu_mode()
 clear()
+
+
+# Ask the user to set the menu_mode if it isn't
+if(not menu_mode):
+	print("Menu mode not found. Please set it.(Currently only basic is available)")
+	menu_mode = choose_from_options(["basic", "alternative", "normal"])
+	print("Setting menu mode to {}".format(menu_mode))
+
 display_help()
+
 while(True):
 	cmd = input("Enter command: ")
 	clear()
@@ -60,19 +105,26 @@ while(True):
 					print(u"{}: {}".format(key, game[key]))
 				print("--------------------------------------------\n")
 	elif cmd == "upcoming":
-		curr_time = 1495753635000 # 5/26/2017 In Unix time in miliseconds
-		search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name,release_dates&limit=50&filter[first_release_date][gte]={}&order=first_release_date:asc".format(curr_time)
+		curr_time = int(time.time()) * 1000 # Current time in Unix time in miliseconds
+		search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name,release_dates,summary&limit=50&filter[first_release_date][gte]={}&order=first_release_date:asc".format(curr_time)
 		upcoming_games = get_info_as_json(search)
-		for game in upcoming_games:
-			try:
-				print(u"Time: {} - Unix Timestamp: {} - Game Name: {}".format(
-					game['release_dates'][0]['human'], game['release_dates'][0]['date'], game['name']))
-			except TypeError:
-				print("Couldnt print information for game with id: {}".format(game['id']))
-				print(u"Printing raw info for game: \n{}".format(game))
+		games_list = []
+		for game_index in range(len(upcoming_games)):
+			current_game = upcoming_games[game_index]
+			games_list.append(Game(current_game))
+			if menu_mode == "basic":
+				game = games_list[game_index]
+				print("----------------------------------")
+				print("{}. {}".format(game_index, game.long_review()))
+				print("----------------------------------\n")
+
+		
 	elif cmd == "id":
+		print("Debugging purposes only!")
 		id = int(input("Enter the id of the game: "))
-		print(get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=name".format(id)))
+		info = get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=*".format(id))
+	elif cmd == 'e' or cmd == 'exit':
+		break
 	else:
 		print("Feeling lost? Type 'help' to see the help menu!")
 
