@@ -26,7 +26,7 @@ def display_help():
 	print("Type 'help' to see this again.")
 	print("Type 'search' to start searching for games.")
 	print("Type 'upcoming' to see upcoming games.")
-	print("Type 'options' to see and change your options.")
+	print("Type 'options' to change the viewing mode.")
 	print("Type 'id' to look for a game by its id.(Debugging Purposes Only)")
 	print("Type 'exit' to exit the program.")
 
@@ -60,20 +60,54 @@ def choose_from_options(options_list, message = "Choose option: "):
 			print(display)
 
 		ch = m.getch()
-		if(ch == b'w'):
+		if(ch == b'w' and i > 0):
 			i -= 1
-		elif(ch == b's'):
+		elif(ch == b's' and i < len(options_list)):
 			i += 1
 		elif(ch == b'\r'):
 			return options_list[i]
 
-		if(i < 0):
-			i = 0
-		elif(i >= len(options_list)):
-			i = len(options_list) - 1
-
 		clear()
 
+
+def basic_review_print(obj_list):
+	for obj in obj_list:
+		print("-" * os.get_terminal_size()[0])
+		print("{}".format(obj.long_review()))
+		print("-" * os.get_terminal_size()[0] + "\n\n")
+
+
+def normal_review_print(obj_list):
+	while(True):
+		description = choose_from_options([obj.short_review() for obj in obj_list])
+		clear()
+		for obj in obj_list:
+			if description == obj.short_review():
+				print("-" * os.get_terminal_size()[0])
+				print(obj.long_review())
+				print("-" * os.get_terminal_size()[0] + "\n\n")
+
+		print("\n\nPress the 'escape' key to exit this menu. Press anything else to continue.")
+		cmd = m.getch()
+		if cmd == b'\x1b':
+			break
+
+
+def alternative_review_print(obj_list):
+	current_index = 0
+	while(True):
+		clear()
+		print("-" * os.get_terminal_size()[0])
+		print(obj_list[current_index].long_review())
+		print("-" * os.get_terminal_size()[0] + "\n\n")
+
+		ch = m.getch()
+		if(ch == b'w' and current_index > 0):
+			current_index += 1
+		elif(ch == b's' and current_index < len(obj_list) - 2):
+			current_index -= 1
+		elif(ch == b'\x1b'):
+			break
 
 os.system("chcp 65001") # Set the encoding to utf-8
 menu_mode = get_saved_menu_mode()
@@ -83,8 +117,9 @@ clear()
 # Ask the user to set the menu_mode if it isn't
 if(not menu_mode):
 	print("Menu mode not found. Please set it.(Currently only basic is available)")
-	menu_mode = choose_from_options(["basic", "alternative", "normal"])
+	menu_mode = choose_from_options(["basic", "normal", "alternative"])
 	print("Setting menu mode to {}".format(menu_mode))
+	clear()
 
 display_help()
 
@@ -112,17 +147,21 @@ while(True):
 		for game_index in range(len(upcoming_games)):
 			current_game = upcoming_games[game_index]
 			games_list.append(Game(current_game))
-			if menu_mode == "basic":
-				game = games_list[game_index]
-				print("----------------------------------")
-				print("{}. {}".format(game_index, game.long_review()))
-				print("----------------------------------\n")
+		
+		if menu_mode == "basic":
+			basic_review_print(games_list)
+		elif menu_mode == "normal":
+			normal_review_print(games_list)
+		elif menu_mode == "alternative":
+			alternative_review_print(games_list)
 
 		
 	elif cmd == "id":
 		print("Debugging purposes only!")
 		id = int(input("Enter the id of the game: "))
 		info = get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=*".format(id))
+	elif cmd == "options":
+		menu_mode = choose_from_options(["basic", "normal", "alternative"])
 	elif cmd == 'e' or cmd == 'exit':
 		break
 	else:

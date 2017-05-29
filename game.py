@@ -14,7 +14,7 @@ class Game:
 		self.rating = game_info_dict.get("rating")
 
 	def short_review(self):
-		info = "{} - {}.".format(self.name, self.release_date)
+		info = u"{} - {}.".format(self.name, self.release_date)
 		if self.rating:
 			info += "Rated {}/100".format(self.rating)
 
