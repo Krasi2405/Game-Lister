@@ -1,11 +1,10 @@
 import requests
 import pdb
-import igdb
 import datetime
 import sys
 import os
 import time
-import msvcrt as m # Module that imports C functions such as getch() etc.
+import msvcrt as m # Module that imports getch()
 
 from game import Game
 
@@ -28,6 +27,8 @@ def display_help():
 	print("Type 'upcoming' to see upcoming games.")
 	print("Type 'options' to change the viewing mode.")
 	print("Type 'id' to look for a game by its id.(Debugging Purposes Only)")
+	print("Type 'popular' to see the most popular games.")
+	print("Type 'publishers' to get a list of all the games made by a certain publisher.")
 	print("Type 'exit' to exit the program.")
 
 
@@ -41,7 +42,7 @@ def get_most_popular_games():
 
 
 def search_games(search_phrase, limit = 10):
-	address = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name&limit={}&offset=0&order=release_dates.date%3Adesc&search={}".format(limit, search_phrase)
+	address = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&limit={}&offset=0&order=release_dates.date%3Adesc&search={}".format(limit, search_phrase)
 	return get_info_as_json(address)
 
 
@@ -62,7 +63,7 @@ def choose_from_options(options_list, message = "Choose option: "):
 		ch = m.getch()
 		if(ch == b'w' and i > 0):
 			i -= 1
-		elif(ch == b's' and i < len(options_list)):
+		elif(ch == b's' and i < len(options_list) - 1):
 			i += 1
 		elif(ch == b'\r'):
 			return options_list[i]
@@ -85,7 +86,7 @@ def normal_review_print(obj_list):
 			if description == obj.short_review():
 				print("-" * os.get_terminal_size()[0])
 				print(obj.long_review())
-				print("-" * os.get_terminal_size()[0] + "\n\n")
+				print("-" * os.get_terminal_size()[0])
 
 		print("\n\nPress the 'escape' key to exit this menu. Press anything else to continue.")
 		cmd = m.getch()
@@ -97,73 +98,81 @@ def alternative_review_print(obj_list):
 	current_index = 0
 	while(True):
 		clear()
+		print("Press 'w' to move up or press 's' to move down the entry list.")
 		print("-" * os.get_terminal_size()[0])
 		print(obj_list[current_index].long_review())
-		print("-" * os.get_terminal_size()[0] + "\n\n")
+		print("-" * os.get_terminal_size()[0])
 
 		ch = m.getch()
-		if(ch == b'w' and current_index > 0):
-			current_index += 1
-		elif(ch == b's' and current_index < len(obj_list) - 2):
+		if(ch == b's' and current_index > 0):
 			current_index -= 1
+		elif(ch == b'w' and current_index < len(obj_list) - 2):
+			current_index += 1
 		elif(ch == b'\x1b'):
 			break
 
-os.system("chcp 65001") # Set the encoding to utf-8
-menu_mode = get_saved_menu_mode()
-clear()
 
+def menu_print(menu_mode, obj_list):
+	if menu_mode == "basic":
+		basic_review_print(obj_list)
+	elif menu_mode == "normal":
+		normal_review_print(obj_list)
+	elif menu_mode == "alternative":
+		alternative_review_print(obj_list)
 
-# Ask the user to set the menu_mode if it isn't
-if(not menu_mode):
-	print("Menu mode not found. Please set it.(Currently only basic is available)")
-	menu_mode = choose_from_options(["basic", "normal", "alternative"])
-	print("Setting menu mode to {}".format(menu_mode))
+if __name__ == "__main__":
+	os.system("chcp 65001") # Set the encoding to utf-8
+	menu_mode = get_saved_menu_mode()
 	clear()
 
-display_help()
-
-while(True):
-	cmd = input("Enter command: ")
-	clear()
-	if cmd == "help":
-		display_help()
-	elif cmd == "search":
-		while(True):
-			argument = input("Enter your search query: ")
-			if argument.lower() == "exit" or argument.lower() == 'e':
-				break
-			games = search_games(argument, 50);
-			for game in games:
-				print("--------------------------------------------")
-				for key in game:
-					print(u"{}: {}".format(key, game[key]))
-				print("--------------------------------------------\n")
-	elif cmd == "upcoming":
-		curr_time = int(time.time()) * 1000 # Current time in Unix time in miliseconds
-		search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name,release_dates,summary&limit=50&filter[first_release_date][gte]={}&order=first_release_date:asc".format(curr_time)
-		upcoming_games = get_info_as_json(search)
-		games_list = []
-		for game_index in range(len(upcoming_games)):
-			current_game = upcoming_games[game_index]
-			games_list.append(Game(current_game))
-		
-		if menu_mode == "basic":
-			basic_review_print(games_list)
-		elif menu_mode == "normal":
-			normal_review_print(games_list)
-		elif menu_mode == "alternative":
-			alternative_review_print(games_list)
-
-		
-	elif cmd == "id":
-		print("Debugging purposes only!")
-		id = int(input("Enter the id of the game: "))
-		info = get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=*".format(id))
-	elif cmd == "options":
+	# Ask the user to set the menu_mode if it isn't set already
+	if(not menu_mode):
+		print("Menu mode not found. Please set it.(Currently only basic is available)")
 		menu_mode = choose_from_options(["basic", "normal", "alternative"])
-	elif cmd == 'e' or cmd == 'exit':
-		break
-	else:
-		print("Feeling lost? Type 'help' to see the help menu!")
+		print("Setting menu mode to {}".format(menu_mode))
+		clear()
+
+	display_help()
+
+	while(True):
+		cmd = input("Enter command: ")
+		clear()
+		if cmd == "help":
+			display_help()
+		elif cmd == "popular":
+			games = get_most_popular_games();
+			game = Game(games[0])
+			print(game.long_review());
+		elif cmd == "search":
+			while(True):
+				argument = input("Enter your search query: ")
+				if argument.lower() == "exit" or argument.lower() == 'e':
+					break
+				games = search_games(argument, 50);
+				games_list = [Game(game) for game in games]
+				menu_print(menu_mode, games_list)	
+		elif cmd == "upcoming":
+			curr_time = int(time.time()) * 1000 # Current time in Unix time in miliseconds
+			search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name,release_dates,summary&limit=50&filter[first_release_date][gte]={}&order=first_release_date:asc".format(curr_time)
+			upcoming_games = get_info_as_json(search)
+			games_list = [Game(current_game) for current_game in upcoming_games]
+			menu_print(menu_mode, games_list)
+		elif cmd == "publishers":
+			id = input("Enter the id of the publisher you would like to see")
+			search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&filter[publishers][in]={}".format(id)
+			games = get_info_as_json(search)
+			games_list = [Game(current_game) for current_game in games]
+			menu_print(menu_mode, games_list) if games_list else print("No games found with this publisher.")
+			
+		elif cmd == "id":
+			print("Debugging purposes only!")
+			id = int(input("Enter the id of the game: "))
+			info = get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=*".format(id))
+			print(info)
+		elif cmd == "options":
+			menu_mode = choose_from_options(["basic", "normal", "alternative"])
+		elif cmd == 'e' or cmd == 'exit':
+			break
+		else:
+			print("Feeling lost? Type 'help' to see the help menu!")
 
