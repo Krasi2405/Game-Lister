@@ -1,16 +1,17 @@
-import requests
 import pdb
 import datetime
 import sys
 import os
 import time
 import msvcrt as m # Module that imports getch()
+import requests
 
 from game import Game
+from company import Company
+from franchise import Franchise
 
-API_KEY = 'pXHeOVmmdzmshLbYBk9pW0cdcascp1vka8ajsngrzxD6GmIAVD'
-API_KEY_HEADER = {'X-Mashape-Key': API_KEY}
-API_ACCESS_HEADER = {'Accept': 'application/json'}
+from http_request_handler import HttpRequestHandler
+
 
 def clear():
 	if sys.platform == "linux" or sys.platform == "linux2":
@@ -30,20 +31,6 @@ def display_help():
 	print("Type 'popular' to see the most popular games.")
 	print("Type 'publishers' to get a list of all the games made by a certain publisher.")
 	print("Type 'exit' to exit the program.")
-
-
-def get_info_as_json(http_address):
-    r = requests.get(http_address, headers= {**API_KEY_HEADER, **API_ACCESS_HEADER})
-    return r.json()
-
-
-def get_most_popular_games():
-	return get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name,popularity&order=popularity:desc")
-
-
-def search_games(search_phrase, limit = 10):
-	address = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&limit={}&offset=0&order=release_dates.date%3Adesc&search={}".format(limit, search_phrase)
-	return get_info_as_json(address)
 
 
 def get_saved_menu_mode():
@@ -92,6 +79,7 @@ def normal_review_print(obj_list):
 		cmd = m.getch()
 		if cmd == b'\x1b':
 			break
+	clear()
 
 
 def alternative_review_print(obj_list):
@@ -110,6 +98,7 @@ def alternative_review_print(obj_list):
 			current_index += 1
 		elif(ch == b'\x1b'):
 			break
+	clear()
 
 
 def menu_print(menu_mode, obj_list):
@@ -121,6 +110,7 @@ def menu_print(menu_mode, obj_list):
 		alternative_review_print(obj_list)
 
 if __name__ == "__main__":
+	http_handler = HttpRequestHandler()
 	os.system("chcp 65001") # Set the encoding to utf-8
 	menu_mode = get_saved_menu_mode()
 	clear()
@@ -137,37 +127,29 @@ if __name__ == "__main__":
 	while(True):
 		cmd = input("Enter command: ")
 		clear()
-		if cmd == "help":
+		if "help" in cmd:
 			display_help()
 		elif cmd == "popular":
-			games = get_most_popular_games();
-			game = Game(games[0])
-			print(game.long_review());
+			games_list = http_handler.get_most_popular_games();
+			menu_print(menu_mode, games_list)
 		elif cmd == "search":
 			while(True):
 				argument = input("Enter your search query: ")
 				if argument.lower() == "exit" or argument.lower() == 'e':
 					break
-				games = search_games(argument, 50);
-				games_list = [Game(game) for game in games]
+				games_list = http_handler.search_games(argument)
 				menu_print(menu_mode, games_list)	
 		elif cmd == "upcoming":
-			curr_time = int(time.time()) * 1000 # Current time in Unix time in miliseconds
-			search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=name,release_dates,summary&limit=50&filter[first_release_date][gte]={}&order=first_release_date:asc".format(curr_time)
-			upcoming_games = get_info_as_json(search)
-			games_list = [Game(current_game) for current_game in upcoming_games]
+			games_list = http_handler.get_upcoming_games()
 			menu_print(menu_mode, games_list)
 		elif cmd == "publishers":
 			id = input("Enter the id of the publisher you would like to see")
-			search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&filter[publishers][in]={}".format(id)
-			games = get_info_as_json(search)
-			games_list = [Game(current_game) for current_game in games]
+			games_list = http_handler.get_games_from_pubisher(id)
 			menu_print(menu_mode, games_list) if games_list else print("No games found with this publisher.")
-			
 		elif cmd == "id":
 			print("Debugging purposes only!")
 			id = int(input("Enter the id of the game: "))
-			info = get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=*".format(id))
+			info = http_handler._get_info_as_json("https://igdbcom-internet-game-database-v1.p.mashape.com/games/{}?fields=*".format(id))
 			print(info)
 		elif cmd == "options":
 			menu_mode = choose_from_options(["basic", "normal", "alternative"])

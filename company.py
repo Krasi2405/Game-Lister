@@ -9,7 +9,6 @@ class Company:
 
 	def short_review(self):
 		info = u"{}. {}".format(self.id, self.name)
-		info +=
 		return info
 
 
