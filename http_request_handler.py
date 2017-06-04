@@ -10,7 +10,9 @@ class HttpRequestHandler:
 	API_KEY_HEADER = {'X-Mashape-Key': API_KEY}
 	API_ACCESS_HEADER = {'Accept': 'application/json'}
 
+
 	def _get_info_as_json(self, http_address):
+		""" Private method that you should really use from inside the class."""
 		r = requests.get(http_address, headers= {**self.API_KEY_HEADER, **self.API_ACCESS_HEADER})
 		return r.json()
 
@@ -31,8 +33,14 @@ class HttpRequestHandler:
 		address = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&limit={}&offset={}&order=release_dates.date%3Adesc&search={}".format(limit, offset,search_phrase)
 		return get_info_as_json(address)
 
-	def get_games_from_pubisher(self, id):
+	def get_games_from_publisher_by_id(self, id):
 		search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&filter[publishers][in]={}".format(id)
+		games = self._get_info_as_json(search)
+		games_list = [Game(current_game) for current_game in games]
+		return games_list
+
+	def get_games_from_developer_by_id(self, id):
+		search = "https://igdbcom-internet-game-database-v1.p.mashape.com/games/?fields=*&filter[developers][in]={}".format(id)
 		games = self._get_info_as_json(search)
 		games_list = [Game(current_game) for current_game in games]
 		return games_list
